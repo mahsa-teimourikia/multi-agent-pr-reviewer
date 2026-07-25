@@ -11,6 +11,7 @@ dependencies = [
     "langchain-openai>=0.3.0,<1.0.0",
     "pydantic-settings>=2.0.0,<3.0.0",
     "PyGithub>=2.0.0,<3.0.0",
+    "requests>=2.32.0,<3.0.0",
 ]
 
 [project.optional-dependencies]
@@ -45,4 +46,3 @@ select = ["E", "F", "I", "B", "UP"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
-

@@ -1,6 +1,6 @@
-# RepoPilot
+# ReviewForge
 
-RepoPilot is an open-source, LangGraph-powered multi-agent pull request reviewer. It is designed to inspect incoming GitHub PRs, combine focused security and code-quality findings, and request maintainer approval before publishing a review.
+ReviewForge is an open-source, LangGraph-powered multi-agent pull request reviewer. It is designed to inspect incoming GitHub PRs, combine focused security and code-quality findings, and request maintainer approval before publishing a review.
 
 ## Project roadmap
 
@@ -52,4 +52,3 @@ make format       # format source and tests
 ## License
 
 MIT. See [LICENSE](LICENSE).
-

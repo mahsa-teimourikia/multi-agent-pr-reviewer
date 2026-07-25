@@ -33,8 +33,8 @@ def supervisor(state: ReviewState) -> dict[str, list[str]]:
 def merge_findings(state: ReviewState) -> dict[str, str]:
     findings = state.get("security_findings", []) + state.get("quality_findings", [])
     if not findings:
-        return {"final_review": "No actionable findings were identified by RepoPilot."}
-    lines = ["## RepoPilot review\n"]
+        return {"final_review": "No actionable findings were identified by ReviewForge."}
+    lines = ["## ReviewForge review\n"]
     for finding in findings:
         location = f" ({finding.path}:{finding.line})" if finding.path and finding.line else ""
         lines.append(
