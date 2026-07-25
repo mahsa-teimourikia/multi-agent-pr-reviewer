@@ -27,3 +27,5 @@ class ReviewState(TypedDict, total=False):
     security_findings: list[Finding]
     quality_findings: list[Finding]
     final_review: str
+    approval: bool
+    review_posted: bool
