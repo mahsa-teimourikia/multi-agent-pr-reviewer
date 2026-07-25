@@ -6,7 +6,7 @@ install:
 install-dev:
 	uv sync --extra dev
 
-test:
+test: install-dev
 	uv run pytest
 
 lint:
@@ -19,4 +19,3 @@ check: lint test
 
 clean:
 	rm -rf .pytest_cache .ruff_cache .mypy_cache dist build
-
