@@ -28,6 +28,19 @@ flowchart TD
 
 The graph will carry a typed review state containing the PR metadata, diff, findings, approval decision, and final review body. The approval boundary is intentionally placed before the GitHub write node.
 
+## Human approval
+
+`build_review_workflow()` uses a durable LangGraph interrupt. Store the returned `thread_id` with the pending review, show the interrupt payload to a repository maintainer, and resume the same thread with an explicit decision:
+
+```python
+from langgraph.types import Command
+
+pending = workflow.invoke(initial_state, {"configurable": {"thread_id": "pr-42"}})
+workflow.invoke(Command(resume={"approved": True}), {"configurable": {"thread_id": "pr-42"}})
+```
+
+The GitHub publisher is never called until the approval value is `True`.
+
 ## Quick start
 
 Requirements: Python 3.11+ and [uv](https://docs.astral.sh/uv/).

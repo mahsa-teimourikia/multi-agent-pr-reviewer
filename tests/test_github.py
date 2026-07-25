@@ -14,4 +14,3 @@ def test_pull_request_event_from_payload() -> None:
 def test_pull_request_event_rejects_incomplete_payload() -> None:
     with pytest.raises(ValueError, match="missing"):
         PullRequestEvent.from_payload({})
-
