@@ -15,7 +15,7 @@ lint:
 format:
 	uv run ruff format .
 
-check: lint test
+check: install-dev lint test
 
 clean:
 	rm -rf .pytest_cache .ruff_cache .mypy_cache dist build
