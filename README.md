@@ -1,5 +1,7 @@
 # ReviewForge
 
+[![CI](https://github.com/mahsa-teimourikia/multi-agent-pr-reviewer/actions/workflows/ci.yml/badge.svg)](https://github.com/mahsa-teimourikia/multi-agent-pr-reviewer/actions/workflows/ci.yml)
+
 ReviewForge is an open-source, LangGraph-powered multi-agent pull request reviewer. It is designed to inspect incoming GitHub PRs, combine focused security and code-quality findings, and request maintainer approval before publishing a review.
 
 ## Project roadmap
@@ -40,6 +42,10 @@ workflow.invoke(Command(resume={"approved": True}), {"configurable": {"thread_id
 ```
 
 The GitHub publisher is never called until the approval value is `True`.
+
+## Connecting GitHub
+
+For a `pull_request` webhook, pass the JSON payload and a configured `GitHubClient` to `start_review_from_event`. ReviewForge fetches the diff, runs the specialist graph, and returns an approval interrupt. Persist the thread ID and resume it only after your maintainer UI records an approval decision. A GitHub App or fine-grained token with pull request read/write permission can be used by the adapter.
 
 ## Quick start
 
