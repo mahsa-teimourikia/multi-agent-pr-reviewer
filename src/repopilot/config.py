@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Credentials and model configuration for a RepoPilot deployment."""
+    """Credentials and model configuration for a ReviewForge deployment."""
 
     openai_api_key: str
     github_token: str | None = None

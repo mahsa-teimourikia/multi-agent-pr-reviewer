@@ -4,7 +4,7 @@ install:
 	uv sync
 
 install-dev:
-	uv sync --extra dev
+	uv sync --extra dev --reinstall-package repopilot
 
 test: install-dev
 	uv run pytest
