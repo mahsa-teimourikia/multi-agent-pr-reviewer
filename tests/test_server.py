@@ -23,22 +23,26 @@ class FakeGitHub:
         self.published = True
 
 
-def test_health_endpoint() -> None:
-    assert TestClient(create_app(github=object(), webhook_secret="secret")).get(
-        "/healthz"
-    ).json() == {"status": "ok"}
+def test_health_endpoint(tmp_path) -> None:
+    assert TestClient(
+        create_app(github=object(), webhook_secret="secret", checkpoint_db=str(tmp_path / "a.db"))
+    ).get("/healthz").json() == {"status": "ok"}
 
 
-def test_webhook_rejects_invalid_signature() -> None:
-    client = TestClient(create_app(github=object(), webhook_secret="secret"))
+def test_webhook_rejects_invalid_signature(tmp_path) -> None:
+    client = TestClient(
+        create_app(github=object(), webhook_secret="secret", checkpoint_db=str(tmp_path / "b.db"))
+    )
     response = client.post("/webhooks/github", content=b"{}", headers={"X-GitHub-Event": "ping"})
     assert response.status_code == 401
 
 
-def test_webhook_ignores_non_pull_request_events() -> None:
+def test_webhook_ignores_non_pull_request_events(tmp_path) -> None:
     body = b"{}"
     signature = "sha256=" + hmac.new(b"secret", body, hashlib.sha256).hexdigest()
-    client = TestClient(create_app(github=object(), webhook_secret="secret"))
+    client = TestClient(
+        create_app(github=object(), webhook_secret="secret", checkpoint_db=str(tmp_path / "c.db"))
+    )
     response = client.post(
         "/webhooks/github",
         content=body,
@@ -47,11 +51,18 @@ def test_webhook_ignores_non_pull_request_events() -> None:
     assert response.json() == {"status": "ignored", "event": "ping"}
 
 
-def test_approval_endpoint_resumes_and_publishes_review() -> None:
+def test_approval_endpoint_resumes_and_publishes_review(tmp_path) -> None:
     body = b'{"repository":{"full_name":"owner/project"},"pull_request":{"number":5}}'
     signature = "sha256=" + hmac.new(b"secret", body, hashlib.sha256).hexdigest()
     github = FakeGitHub()
-    client = TestClient(create_app(github=github, webhook_secret="secret", model=FakeModel()))
+    client = TestClient(
+        create_app(
+            github=github,
+            webhook_secret="secret",
+            model=FakeModel(),
+            checkpoint_db=str(tmp_path / "d.db"),
+        )
+    )
     started = client.post(
         "/webhooks/github",
         content=body,
