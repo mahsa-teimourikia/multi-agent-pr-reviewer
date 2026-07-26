@@ -37,8 +37,10 @@ def create_app(
     webhook_secret: str | None = None,
     model: Any | None = None,
     checkpoint_db: str | None = None,
+    approval_token: str | None = None,
 ) -> FastAPI:
     """Create the webhook app with injectable dependencies for tests."""
+
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         yield
@@ -47,6 +49,9 @@ def create_app(
     app = FastAPI(title="ReviewForge", version="0.1.0", lifespan=lifespan)
     client = github or GitHubClient(os.environ["GITHUB_TOKEN"])
     secret = webhook_secret or os.environ["GITHUB_WEBHOOK_SECRET"]
+    maintainer_token = approval_token or os.environ.get("APPROVAL_TOKEN")
+    if not maintainer_token:
+        raise RuntimeError("APPROVAL_TOKEN must be configured")
     checkpoint_context = SqliteSaver.from_conn_string(
         checkpoint_db or os.environ.get("CHECKPOINT_DB", "reviewforge-checkpoints.sqlite")
     )
@@ -77,7 +82,11 @@ def create_app(
         repository: str,
         pull_request_number: int,
         decision: ApprovalRequest,
+        authorization: str | None = Header(default=None),
     ) -> dict[str, Any]:
+        expected = f"Bearer {maintainer_token}"
+        if not authorization or not hmac.compare_digest(authorization, expected):
+            raise HTTPException(status_code=401, detail="Invalid approval credentials")
         workflow = build_review_workflow(
             model=model,
             publisher=client.post_review,

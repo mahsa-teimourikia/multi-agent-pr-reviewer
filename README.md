@@ -64,11 +64,12 @@ The webhook endpoint is `POST /webhooks/github`; configure GitHub to send `pull_
 
 ```bash
 curl -X POST http://localhost:8000/reviews/owner/project/42/approval \
+  -H "Authorization: Bearer $APPROVAL_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"approved":true}'
 ```
 
-The server stores LangGraph checkpoints in SQLite at `CHECKPOINT_DB` (default: `reviewforge-checkpoints.sqlite`), so paused reviews survive normal process restarts. For multiple server instances, use a shared production database/checkpointer implementation.
+The approval endpoint requires `APPROVAL_TOKEN`. The server stores LangGraph checkpoints in SQLite at `CHECKPOINT_DB` (default: `reviewforge-checkpoints.sqlite`), so paused reviews survive normal process restarts. For multiple server instances, use a shared production database/checkpointer implementation.
 
 ## Container deployment
 
