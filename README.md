@@ -71,6 +71,13 @@ curl -X POST http://localhost:8000/reviews/owner/project/42/approval \
 
 The approval endpoint requires `APPROVAL_TOKEN`. The server stores LangGraph checkpoints in SQLite at `CHECKPOINT_DB` (default: `reviewforge-checkpoints.sqlite`), so paused reviews survive normal process restarts. For multiple server instances, use a shared production database/checkpointer implementation.
 
+Maintainer clients can inspect a pending review before deciding:
+
+```bash
+curl http://localhost:8000/reviews/owner/project/42 \
+  -H "Authorization: Bearer $APPROVAL_TOKEN"
+```
+
 ## Container deployment
 
 ```bash
