@@ -1,0 +1,8 @@
+# Default owner for all repository changes.
+* @mahsa-teimourikia
+
+# Require maintainer review for security and automation changes.
+/SECURITY.md @mahsa-teimourikia
+/.github/ @mahsa-teimourikia
+Dockerfile @mahsa-teimourikia
+src/repopilot/server.py @mahsa-teimourikia
