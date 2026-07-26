@@ -8,10 +8,11 @@ import os
 import sqlite3
 import time
 import uuid
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request, Response
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.types import Command
 from pydantic import BaseModel
@@ -48,7 +49,7 @@ def create_app(
     """Create the webhook app with injectable dependencies for tests."""
 
     @asynccontextmanager
-    async def lifespan(_app: FastAPI):
+    async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         yield
         delivery_db.close()
         checkpoint_context.__exit__(None, None, None)
@@ -56,7 +57,9 @@ def create_app(
     app = FastAPI(title="ReviewForge", version="0.1.0", lifespan=lifespan)
 
     @app.middleware("http")
-    async def request_logging(request: Request, call_next):
+    async def request_logging(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
         started = time.perf_counter()
         response = await call_next(request)

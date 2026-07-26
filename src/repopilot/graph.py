@@ -43,13 +43,13 @@ def merge_findings(state: ReviewState) -> dict[str, str]:
     return {"final_review": "\n".join(lines)}
 
 
-def build_review_graph(model: Any | None = None):
+def build_review_graph(model: Any | None = None) -> Any:
     """Build and compile the review graph, optionally with an injected test model."""
     llm = model or ChatOpenAI(model="gpt-4o-mini", temperature=0)
     builder = StateGraph(ReviewState)
     builder.add_node("supervisor", supervisor)
-    builder.add_node("security_agent", _review_node(llm, SECURITY_PROMPT))
-    builder.add_node("quality_agent", _review_node(llm, QUALITY_PROMPT))
+    builder.add_node("security_agent", _review_node(llm, SECURITY_PROMPT))  # type: ignore[arg-type]
+    builder.add_node("quality_agent", _review_node(llm, QUALITY_PROMPT))  # type: ignore[arg-type]
     builder.add_node("merge_findings", merge_findings)
     builder.add_edge(START, "supervisor")
     builder.add_conditional_edges(

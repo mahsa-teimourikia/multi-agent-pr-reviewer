@@ -48,14 +48,14 @@ def build_review_workflow(
     model: Any | None = None,
     publisher: Callable[[str, int, str], Any] | None = None,
     checkpointer: Any | None = None,
-):
+) -> Any:
     """Build a review workflow that can pause and resume by thread ID."""
     llm = model or ChatOpenAI(model="gpt-4o-mini", temperature=0)
     post = publisher or (lambda _repo, _number, _body: None)
     builder = StateGraph(ReviewState)
     builder.add_node("supervisor", supervisor)
-    builder.add_node("security_agent", _review_node(llm, security_prompt))
-    builder.add_node("quality_agent", _review_node(llm, quality_prompt))
+    builder.add_node("security_agent", _review_node(llm, security_prompt))  # type: ignore[arg-type]
+    builder.add_node("quality_agent", _review_node(llm, quality_prompt))  # type: ignore[arg-type]
     builder.add_node("merge_findings", merge_findings)
     builder.add_node("approval_gate", approval_gate)
     builder.add_node("publish_review", lambda state: publish_review(state, post))

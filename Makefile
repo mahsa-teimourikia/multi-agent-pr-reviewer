@@ -1,4 +1,4 @@
-.PHONY: install install-dev test lint format check docker-build clean
+.PHONY: install install-dev test lint typecheck format check docker-build clean
 
 install:
 	uv sync
@@ -12,10 +12,13 @@ test: install-dev
 lint:
 	uv run ruff check .
 
+typecheck:
+	uv run mypy src
+
 format:
 	uv run ruff format .
 
-check: install-dev lint test
+check: install-dev lint typecheck test
 
 docker-build:
 	docker build -t reviewforge:local .
