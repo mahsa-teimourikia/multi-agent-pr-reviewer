@@ -55,10 +55,12 @@ Requirements: Python 3.11+ and [uv](https://docs.astral.sh/uv/).
 make install-dev
 cp .env.example .env
 make check
-uv run repopilot
+uv run reviewforge-server
 ```
 
 The environment variables in `.env.example` define the integration contract. Tokens must be supplied at runtime and should never be committed.
+
+The webhook endpoint is `POST /webhooks/github`; configure GitHub to send `pull_request` events to it and set `GITHUB_WEBHOOK_SECRET` to the same secret. A maintainer approval UI should resume the paused LangGraph thread after reviewing the interrupt payload.
 
 ## Development
 
