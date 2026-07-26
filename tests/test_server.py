@@ -134,6 +134,13 @@ def test_approval_endpoint_resumes_and_publishes_review(tmp_path) -> None:
         },
     )
     assert started.json() == {"status": "review_started", "interrupted": True}
+    pending = client.get(
+        "/reviews/owner/project/5",
+        headers={"Authorization": "Bearer token"},
+    )
+    assert pending.status_code == 200
+    assert pending.json()["status"] == "pending"
+    assert "Test" in pending.json()["review"]
     duplicate = client.post(
         "/webhooks/github",
         content=body,

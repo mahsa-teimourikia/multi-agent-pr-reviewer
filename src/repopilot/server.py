@@ -128,6 +128,40 @@ def create_app(
             "review_posted": result.get("review_posted", False),
         }
 
+    @app.get("/reviews/{repository:path}/{pull_request_number}")
+    async def review_status(
+        repository: str,
+        pull_request_number: int,
+        authorization: str | None = Header(default=None),
+    ) -> dict[str, Any]:
+        expected = f"Bearer {maintainer_token}"
+        if not authorization or not hmac.compare_digest(authorization, expected):
+            raise HTTPException(status_code=401, detail="Invalid approval credentials")
+        workflow = build_review_workflow(
+            model=model,
+            publisher=client.post_review,
+            checkpointer=checkpointer,
+        )
+        snapshot = workflow.get_state(
+            {"configurable": {"thread_id": f"{repository}#{pull_request_number}"}}
+        )
+        if not snapshot.values:
+            raise HTTPException(status_code=404, detail="Review not found")
+        values = snapshot.values
+        status = (
+            "published"
+            if values.get("review_posted")
+            else "rejected"
+            if values.get("approval") is False
+            else "pending"
+        )
+        return {
+            "status": status,
+            "repository": repository,
+            "pull_request_number": pull_request_number,
+            "review": values.get("final_review"),
+        }
+
     return app
 
 
