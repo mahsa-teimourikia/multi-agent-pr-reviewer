@@ -73,7 +73,13 @@ def create_app(
             raise HTTPException(status_code=401, detail="Invalid webhook signature")
         if x_github_event != "pull_request":
             return {"status": "ignored", "event": x_github_event}
-        payload = json.loads(body)
+        try:
+            payload = json.loads(body)
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=400, detail="Invalid JSON payload") from exc
+        action = payload.get("action")
+        if action not in {"opened", "synchronize", "reopened"}:
+            return {"status": "ignored", "event": x_github_event, "action": action}
         result = start_review_from_event(payload, client, model=model, checkpointer=checkpointer)
         return {"status": "review_started", "interrupted": "__interrupt__" in result}
 
