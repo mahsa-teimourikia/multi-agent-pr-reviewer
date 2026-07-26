@@ -4,10 +4,11 @@ import hashlib
 import hmac
 import json
 import os
+from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException, Request
-from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.types import Command
 from pydantic import BaseModel
 
@@ -35,12 +36,22 @@ def create_app(
     github: GitHubClient | None = None,
     webhook_secret: str | None = None,
     model: Any | None = None,
+    checkpoint_db: str | None = None,
 ) -> FastAPI:
     """Create the webhook app with injectable dependencies for tests."""
-    app = FastAPI(title="ReviewForge", version="0.1.0")
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        yield
+        checkpoint_context.__exit__(None, None, None)
+
+    app = FastAPI(title="ReviewForge", version="0.1.0", lifespan=lifespan)
     client = github or GitHubClient(os.environ["GITHUB_TOKEN"])
     secret = webhook_secret or os.environ["GITHUB_WEBHOOK_SECRET"]
-    checkpointer = InMemorySaver()
+    checkpoint_context = SqliteSaver.from_conn_string(
+        checkpoint_db or os.environ.get("CHECKPOINT_DB", "reviewforge-checkpoints.sqlite")
+    )
+    checkpointer = checkpoint_context.__enter__()
+    checkpointer.setup()
 
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:

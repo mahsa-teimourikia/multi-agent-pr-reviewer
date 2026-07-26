@@ -10,5 +10,6 @@ class Settings(BaseSettings):
     github_token: str | None = None
     github_repository: str | None = None
     review_model: str = "gpt-4o-mini"
+    checkpoint_db: str = "reviewforge-checkpoints.sqlite"
 
     model_config = SettingsConfigDict(env_file=".env", env_prefix="", extra="ignore")

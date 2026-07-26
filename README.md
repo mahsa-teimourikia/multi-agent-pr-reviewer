@@ -68,7 +68,7 @@ curl -X POST http://localhost:8000/reviews/owner/project/42/approval \
   -d '{"approved":true}'
 ```
 
-The current server uses an in-process checkpointer. Use a persistent checkpointer before deploying multiple server instances.
+The server stores LangGraph checkpoints in SQLite at `CHECKPOINT_DB` (default: `reviewforge-checkpoints.sqlite`), so paused reviews survive normal process restarts. For multiple server instances, use a shared production database/checkpointer implementation.
 
 ## Development
 
