@@ -66,8 +66,53 @@ def test_webhook_ignores_non_pull_request_events(tmp_path) -> None:
     assert response.json() == {"status": "ignored", "event": "ping"}
 
 
+def test_webhook_ignores_irrelevant_pull_request_actions(tmp_path) -> None:
+    body = b'{"action":"closed"}'
+    signature = "sha256=" + hmac.new(b"secret", body, hashlib.sha256).hexdigest()
+    client = TestClient(
+        create_app(
+            github=object(),
+            webhook_secret="secret",
+            approval_token="token",
+            checkpoint_db=str(tmp_path / "closed.db"),
+        )
+    )
+    response = client.post(
+        "/webhooks/github",
+        content=body,
+        headers={"X-GitHub-Event": "pull_request", "X-Hub-Signature-256": signature},
+    )
+    assert response.json() == {
+        "status": "ignored",
+        "event": "pull_request",
+        "action": "closed",
+    }
+
+
+def test_webhook_rejects_invalid_json(tmp_path) -> None:
+    body = b"not-json"
+    signature = "sha256=" + hmac.new(b"secret", body, hashlib.sha256).hexdigest()
+    client = TestClient(
+        create_app(
+            github=object(),
+            webhook_secret="secret",
+            approval_token="token",
+            checkpoint_db=str(tmp_path / "invalid.db"),
+        )
+    )
+    response = client.post(
+        "/webhooks/github",
+        content=body,
+        headers={"X-GitHub-Event": "pull_request", "X-Hub-Signature-256": signature},
+    )
+    assert response.status_code == 400
+
+
 def test_approval_endpoint_resumes_and_publishes_review(tmp_path) -> None:
-    body = b'{"repository":{"full_name":"owner/project"},"pull_request":{"number":5}}'
+    body = (
+        b'{"action":"opened","repository":{"full_name":"owner/project"},'
+        b'"pull_request":{"number":5}}'
+    )
     signature = "sha256=" + hmac.new(b"secret", body, hashlib.sha256).hexdigest()
     github = FakeGitHub()
     client = TestClient(
