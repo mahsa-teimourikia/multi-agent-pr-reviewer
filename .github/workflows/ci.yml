@@ -19,3 +19,13 @@ jobs:
       - run: uv python install 3.11
       - run: make check
 
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: reviewforge:ci
