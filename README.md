@@ -70,6 +70,20 @@ curl -X POST http://localhost:8000/reviews/owner/project/42/approval \
 
 The server stores LangGraph checkpoints in SQLite at `CHECKPOINT_DB` (default: `reviewforge-checkpoints.sqlite`), so paused reviews survive normal process restarts. For multiple server instances, use a shared production database/checkpointer implementation.
 
+## Container deployment
+
+```bash
+docker build -t reviewforge:local .
+docker run --rm -p 8000:8000 \
+  -e OPENAI_API_KEY \
+  -e GITHUB_TOKEN \
+  -e GITHUB_WEBHOOK_SECRET \
+  -v "$PWD/data:/data" \
+  reviewforge:local
+```
+
+The image runs as a non-root user, persists checkpoints under `/data`, and exposes a Docker health check through `/healthz`.
+
 ## Development
 
 ```bash
