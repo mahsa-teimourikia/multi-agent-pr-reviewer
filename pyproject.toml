@@ -1,5 +1,5 @@
 [project]
-name = "repopilot"
+name = "reviewforge"
 version = "0.1.0"
 description = "An open-source multi-agent GitHub pull request reviewer built with LangGraph."
 readme = "README.md"
