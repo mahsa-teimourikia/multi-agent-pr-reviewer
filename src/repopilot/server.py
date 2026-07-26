@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import json
 import os
+import sqlite3
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -44,6 +45,7 @@ def create_app(
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         yield
+        delivery_db.close()
         checkpoint_context.__exit__(None, None, None)
 
     app = FastAPI(title="ReviewForge", version="0.1.0", lifespan=lifespan)
@@ -57,6 +59,15 @@ def create_app(
     )
     checkpointer = checkpoint_context.__enter__()
     checkpointer.setup()
+    delivery_db = sqlite3.connect(
+        checkpoint_db or os.environ.get("CHECKPOINT_DB", "reviewforge-checkpoints.sqlite"),
+        check_same_thread=False,
+    )
+    delivery_db.execute(
+        "CREATE TABLE IF NOT EXISTS webhook_deliveries "
+        "(delivery_id TEXT PRIMARY KEY, received_at TEXT DEFAULT CURRENT_TIMESTAMP)"
+    )
+    delivery_db.commit()
 
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:
@@ -67,6 +78,7 @@ def create_app(
         request: Request,
         x_github_event: str = Header(default=""),
         x_hub_signature_256: str | None = Header(default=None),
+        x_github_delivery: str | None = Header(default=None),
     ) -> dict[str, Any]:
         body = await request.body()
         if not verify_signature(body, x_hub_signature_256, secret):
@@ -80,6 +92,14 @@ def create_app(
         action = payload.get("action")
         if action not in {"opened", "synchronize", "reopened"}:
             return {"status": "ignored", "event": x_github_event, "action": action}
+        if x_github_delivery:
+            inserted = delivery_db.execute(
+                "INSERT OR IGNORE INTO webhook_deliveries (delivery_id) VALUES (?)",
+                (x_github_delivery,),
+            ).rowcount
+            delivery_db.commit()
+            if not inserted:
+                return {"status": "duplicate", "delivery_id": x_github_delivery}
         result = start_review_from_event(payload, client, model=model, checkpointer=checkpointer)
         return {"status": "review_started", "interrupted": "__interrupt__" in result}
 

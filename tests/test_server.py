@@ -127,9 +127,23 @@ def test_approval_endpoint_resumes_and_publishes_review(tmp_path) -> None:
     started = client.post(
         "/webhooks/github",
         content=body,
-        headers={"X-GitHub-Event": "pull_request", "X-Hub-Signature-256": signature},
+        headers={
+            "X-GitHub-Event": "pull_request",
+            "X-Hub-Signature-256": signature,
+            "X-GitHub-Delivery": "delivery-1",
+        },
     )
     assert started.json() == {"status": "review_started", "interrupted": True}
+    duplicate = client.post(
+        "/webhooks/github",
+        content=body,
+        headers={
+            "X-GitHub-Event": "pull_request",
+            "X-Hub-Signature-256": signature,
+            "X-GitHub-Delivery": "delivery-1",
+        },
+    )
+    assert duplicate.json() == {"status": "duplicate", "delivery_id": "delivery-1"}
     unauthorized = client.post("/reviews/owner/project/5/approval", json={"approved": True})
     assert unauthorized.status_code == 401
     approved = client.post(
