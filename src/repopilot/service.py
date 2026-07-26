@@ -12,7 +12,7 @@ def start_review_from_event(
     *,
     model: Any | None = None,
     checkpointer: Any | None = None,
-):
+) -> Any:
     """Start a review from a GitHub pull_request webhook payload.
 
     The returned graph result may contain an interrupt. Persist the thread ID and
