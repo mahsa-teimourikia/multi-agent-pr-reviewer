@@ -3,8 +3,11 @@
 import hashlib
 import hmac
 import json
+import logging
 import os
 import sqlite3
+import time
+import uuid
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -16,6 +19,8 @@ from pydantic import BaseModel
 from .github import GitHubClient
 from .service import start_review_from_event
 from .workflow import build_review_workflow
+
+logger = logging.getLogger("reviewforge")
 
 
 class ApprovalRequest(BaseModel):
@@ -49,6 +54,24 @@ def create_app(
         checkpoint_context.__exit__(None, None, None)
 
     app = FastAPI(title="ReviewForge", version="0.1.0", lifespan=lifespan)
+
+    @app.middleware("http")
+    async def request_logging(request: Request, call_next):
+        request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+        started = time.perf_counter()
+        response = await call_next(request)
+        duration_ms = round((time.perf_counter() - started) * 1000, 2)
+        response.headers["X-Request-ID"] = request_id
+        logger.info(
+            "request_complete request_id=%s method=%s path=%s status=%s duration_ms=%s",
+            request_id,
+            request.method,
+            request.url.path,
+            response.status_code,
+            duration_ms,
+        )
+        return response
+
     client = github or GitHubClient(os.environ["GITHUB_TOKEN"])
     secret = webhook_secret or os.environ["GITHUB_WEBHOOK_SECRET"]
     maintainer_token = approval_token or os.environ.get("APPROVAL_TOKEN")

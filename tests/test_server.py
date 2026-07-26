@@ -24,14 +24,16 @@ class FakeGitHub:
 
 
 def test_health_endpoint(tmp_path) -> None:
-    assert TestClient(
+    response = TestClient(
         create_app(
             github=object(),
             webhook_secret="secret",
             approval_token="token",
             checkpoint_db=str(tmp_path / "a.db"),
         )
-    ).get("/healthz").json() == {"status": "ok"}
+    ).get("/healthz", headers={"X-Request-ID": "request-123"})
+    assert response.json() == {"status": "ok"}
+    assert response.headers["X-Request-ID"] == "request-123"
 
 
 def test_webhook_rejects_invalid_signature(tmp_path) -> None:
