@@ -92,6 +92,8 @@ docker run --rm -p 8000:8000 \
 
 The image runs as a non-root user, persists checkpoints under `/data`, and exposes a Docker health check through `/healthz`.
 
+Pushing a tag such as `v0.1.0` publishes versioned and `latest` images to GitHub Container Registry through the release workflow.
+
 ## Development
 
 ```bash
