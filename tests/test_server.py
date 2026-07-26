@@ -162,3 +162,51 @@ def test_approval_endpoint_resumes_and_publishes_review(tmp_path) -> None:
     )
     assert approved.json() == {"status": "published", "review_posted": True}
     assert github.published is True
+
+
+def test_pending_review_survives_server_restart(tmp_path) -> None:
+    body = (
+        b'{"action":"opened","repository":{"full_name":"owner/project"},'
+        b'"pull_request":{"number":8}}'
+    )
+    signature = "sha256=" + hmac.new(b"secret", body, hashlib.sha256).hexdigest()
+    database = str(tmp_path / "restart.db")
+    first_github = FakeGitHub()
+    with TestClient(
+        create_app(
+            github=first_github,
+            webhook_secret="secret",
+            model=FakeModel(),
+            approval_token="token",
+            checkpoint_db=database,
+        )
+    ) as first:
+        response = first.post(
+            "/webhooks/github",
+            content=body,
+            headers={"X-GitHub-Event": "pull_request", "X-Hub-Signature-256": signature},
+        )
+        assert response.status_code == 200
+
+    second_github = FakeGitHub()
+    with TestClient(
+        create_app(
+            github=second_github,
+            webhook_secret="secret",
+            model=FakeModel(),
+            approval_token="token",
+            checkpoint_db=database,
+        )
+    ) as second:
+        status = second.get(
+            "/reviews/owner/project/8",
+            headers={"Authorization": "Bearer token"},
+        )
+        assert status.json()["status"] == "pending"
+        approved = second.post(
+            "/reviews/owner/project/8/approval",
+            json={"approved": True},
+            headers={"Authorization": "Bearer token"},
+        )
+        assert approved.json()["review_posted"] is True
+        assert second_github.published is True
