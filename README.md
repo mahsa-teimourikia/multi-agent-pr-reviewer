@@ -60,7 +60,15 @@ uv run reviewforge-server
 
 The environment variables in `.env.example` define the integration contract. Tokens must be supplied at runtime and should never be committed.
 
-The webhook endpoint is `POST /webhooks/github`; configure GitHub to send `pull_request` events to it and set `GITHUB_WEBHOOK_SECRET` to the same secret. A maintainer approval UI should resume the paused LangGraph thread after reviewing the interrupt payload.
+The webhook endpoint is `POST /webhooks/github`; configure GitHub to send `pull_request` events to it and set `GITHUB_WEBHOOK_SECRET` to the same secret. After reviewing the interrupt payload, a maintainer can approve or reject it through:
+
+```bash
+curl -X POST http://localhost:8000/reviews/owner/project/42/approval \
+  -H 'Content-Type: application/json' \
+  -d '{"approved":true}'
+```
+
+The current server uses an in-process checkpointer. Use a persistent checkpointer before deploying multiple server instances.
 
 ## Development
 

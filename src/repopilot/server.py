@@ -7,9 +7,19 @@ import os
 from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException, Request
+from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.types import Command
+from pydantic import BaseModel
 
 from .github import GitHubClient
 from .service import start_review_from_event
+from .workflow import build_review_workflow
+
+
+class ApprovalRequest(BaseModel):
+    """Maintainer decision for a paused review."""
+
+    approved: bool
 
 
 def verify_signature(body: bytes, signature: str | None, secret: str) -> bool:
@@ -24,11 +34,13 @@ def create_app(
     *,
     github: GitHubClient | None = None,
     webhook_secret: str | None = None,
+    model: Any | None = None,
 ) -> FastAPI:
     """Create the webhook app with injectable dependencies for tests."""
     app = FastAPI(title="ReviewForge", version="0.1.0")
     client = github or GitHubClient(os.environ["GITHUB_TOKEN"])
     secret = webhook_secret or os.environ["GITHUB_WEBHOOK_SECRET"]
+    checkpointer = InMemorySaver()
 
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:
@@ -46,8 +58,29 @@ def create_app(
         if x_github_event != "pull_request":
             return {"status": "ignored", "event": x_github_event}
         payload = json.loads(body)
-        result = start_review_from_event(payload, client)
+        result = start_review_from_event(payload, client, model=model, checkpointer=checkpointer)
         return {"status": "review_started", "interrupted": "__interrupt__" in result}
+
+    @app.post("/reviews/{repository:path}/{pull_request_number}/approval")
+    async def approve_review(
+        repository: str,
+        pull_request_number: int,
+        decision: ApprovalRequest,
+    ) -> dict[str, Any]:
+        workflow = build_review_workflow(
+            model=model,
+            publisher=client.post_review,
+            checkpointer=checkpointer,
+        )
+        thread_id = f"{repository}#{pull_request_number}"
+        result = workflow.invoke(
+            Command(resume={"approved": decision.approved}),
+            {"configurable": {"thread_id": thread_id}},
+        )
+        return {
+            "status": "published" if result.get("review_posted") else "rejected",
+            "review_posted": result.get("review_posted", False),
+        }
 
     return app
 
