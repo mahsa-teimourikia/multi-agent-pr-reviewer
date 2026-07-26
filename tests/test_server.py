@@ -25,13 +25,23 @@ class FakeGitHub:
 
 def test_health_endpoint(tmp_path) -> None:
     assert TestClient(
-        create_app(github=object(), webhook_secret="secret", checkpoint_db=str(tmp_path / "a.db"))
+        create_app(
+            github=object(),
+            webhook_secret="secret",
+            approval_token="token",
+            checkpoint_db=str(tmp_path / "a.db"),
+        )
     ).get("/healthz").json() == {"status": "ok"}
 
 
 def test_webhook_rejects_invalid_signature(tmp_path) -> None:
     client = TestClient(
-        create_app(github=object(), webhook_secret="secret", checkpoint_db=str(tmp_path / "b.db"))
+        create_app(
+            github=object(),
+            webhook_secret="secret",
+            approval_token="token",
+            checkpoint_db=str(tmp_path / "b.db"),
+        )
     )
     response = client.post("/webhooks/github", content=b"{}", headers={"X-GitHub-Event": "ping"})
     assert response.status_code == 401
@@ -41,7 +51,12 @@ def test_webhook_ignores_non_pull_request_events(tmp_path) -> None:
     body = b"{}"
     signature = "sha256=" + hmac.new(b"secret", body, hashlib.sha256).hexdigest()
     client = TestClient(
-        create_app(github=object(), webhook_secret="secret", checkpoint_db=str(tmp_path / "c.db"))
+        create_app(
+            github=object(),
+            webhook_secret="secret",
+            approval_token="token",
+            checkpoint_db=str(tmp_path / "c.db"),
+        )
     )
     response = client.post(
         "/webhooks/github",
@@ -60,6 +75,7 @@ def test_approval_endpoint_resumes_and_publishes_review(tmp_path) -> None:
             github=github,
             webhook_secret="secret",
             model=FakeModel(),
+            approval_token="token",
             checkpoint_db=str(tmp_path / "d.db"),
         )
     )
@@ -69,6 +85,12 @@ def test_approval_endpoint_resumes_and_publishes_review(tmp_path) -> None:
         headers={"X-GitHub-Event": "pull_request", "X-Hub-Signature-256": signature},
     )
     assert started.json() == {"status": "review_started", "interrupted": True}
-    approved = client.post("/reviews/owner/project/5/approval", json={"approved": True})
+    unauthorized = client.post("/reviews/owner/project/5/approval", json={"approved": True})
+    assert unauthorized.status_code == 401
+    approved = client.post(
+        "/reviews/owner/project/5/approval",
+        json={"approved": True},
+        headers={"Authorization": "Bearer token"},
+    )
     assert approved.json() == {"status": "published", "review_posted": True}
     assert github.published is True
