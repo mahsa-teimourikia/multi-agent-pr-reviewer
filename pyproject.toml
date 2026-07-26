@@ -5,7 +5,7 @@ description = "An open-source multi-agent GitHub pull request reviewer built wit
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-authors = [{ name = "RepoPilot contributors" }]
+authors = [{ name = "ReviewForge contributors" }]
 dependencies = [
     "langgraph>=1.0.10,<2.0.0",
     "langchain-openai>=1.1.14,<2.0.0",
@@ -28,6 +28,7 @@ dev = [
 
 [project.scripts]
 repopilot = "repopilot.cli:main"
+reviewforge = "repopilot.cli:main"
 reviewforge-server = "repopilot.server:main"
 
 [build-system]

@@ -98,6 +98,7 @@ The image runs as a non-root user, persists checkpoints under `/data`, and expos
 make install-dev  # create/sync the uv environment
 make check        # lint and test
 make format       # format source and tests
+uv run reviewforge # print the CLI status message
 ```
 
 ## License
