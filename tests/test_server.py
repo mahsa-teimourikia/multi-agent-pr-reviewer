@@ -37,6 +37,18 @@ def test_health_endpoint(tmp_path) -> None:
     assert response.headers["X-Request-ID"] == "request-123"
 
 
+def test_readiness_endpoint_checks_storage_and_worker(tmp_path) -> None:
+    client = TestClient(
+        create_app(
+            github=object(),
+            webhook_secret="secret",
+            approval_token="token",
+            checkpoint_db=str(tmp_path / "ready.db"),
+        )
+    )
+    assert client.get("/readyz").json() == {"status": "ready"}
+
+
 def test_storage_uses_wal_mode(tmp_path) -> None:
     database = tmp_path / "wal.db"
     client = TestClient(
@@ -188,7 +200,7 @@ def test_approval_endpoint_resumes_and_publishes_review(tmp_path) -> None:
             "/reviews/owner/project/5",
             headers={"Authorization": "Bearer token"},
         )
-        if pending.status_code == 200:
+        if pending.status_code == 200 and pending.json().get("review"):
             break
         time.sleep(0.01)
     assert pending.status_code == 200

@@ -74,6 +74,11 @@ class ReviewQueue:
         self._wake.set()
         self._thread.join(timeout=5)
 
+    @property
+    def is_alive(self) -> bool:
+        """Whether the queue worker is available to accept jobs."""
+        return self._thread.is_alive() and not self._stop.is_set()
+
     def _claim(self) -> sqlite3.Row | None:
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")

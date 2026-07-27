@@ -78,6 +78,7 @@ GITHUB_REPOSITORY=owner/repository
 GITHUB_WEBHOOK_SECRET=$(openssl rand -hex 32)
 APPROVAL_TOKEN=$(openssl rand -hex 32)
 CHECKPOINT_DB=reviewforge-checkpoints.sqlite
+RATE_LIMIT_PER_MINUTE=60
 ```
 
 ### Verify the installation
@@ -148,6 +149,8 @@ The approval endpoint requires `APPROVAL_TOKEN`. For production, a GitHub App is
 
 Requests are rate limited to 60 per source IP per minute by default; override the limit when constructing the app for tests or controlled deployments. Authenticated Prometheus-style counters are available at `/metrics` using `Authorization: Bearer $APPROVAL_TOKEN`.
 
+Use `/healthz` for a liveness probe and `/readyz` for a readiness probe. Readiness verifies both the SQLite connection and review queue worker.
+
 ## Container deployment
 
 ```bash
@@ -161,7 +164,7 @@ docker run --rm -p 8000:8000 \
   reviewforge:local
 ```
 
-The image runs as a non-root user, persists checkpoints under `/data`, and exposes a Docker health check through `/healthz`.
+The image runs as a non-root user, persists checkpoints under `/data`, and exposes a Docker readiness health check through `/readyz`.
 
 Pushing a tag such as `v0.1.0` publishes versioned and `latest` images to GitHub Container Registry through the release workflow.
 
