@@ -70,6 +70,10 @@ Edit `.env` and set every value below. Generate unique secrets; never commit `.e
 ```dotenv
 OPENAI_API_KEY=your-openai-api-key
 GITHUB_TOKEN=your-github-token
+# Or use a GitHub App installation instead:
+# GITHUB_APP_ID=123456
+# GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----..."
+# GITHUB_APP_INSTALLATION_ID=12345678
 GITHUB_REPOSITORY=owner/repository
 GITHUB_WEBHOOK_SECRET=$(openssl rand -hex 32)
 APPROVAL_TOKEN=$(openssl rand -hex 32)
@@ -136,7 +140,7 @@ curl -X POST http://localhost:8000/reviews/owner/project/42/approval \
   -d '{"approved":true}'
 ```
 
-The approval endpoint requires `APPROVAL_TOKEN`. The server stores LangGraph checkpoints in SQLite at `CHECKPOINT_DB` (default: `reviewforge-checkpoints.sqlite`), so paused reviews survive normal process restarts. For multiple server instances, use a shared production database/checkpointer implementation.
+The approval endpoint requires `APPROVAL_TOKEN`. For production, a GitHub App is recommended: ReviewForge exchanges the App private key and installation ID for a short-lived installation token at startup. The server stores LangGraph checkpoints in SQLite at `CHECKPOINT_DB` (default: `reviewforge-checkpoints.sqlite`), so paused reviews survive normal process restarts. For multiple server instances, use a shared production database/checkpointer implementation.
 
 ## Container deployment
 

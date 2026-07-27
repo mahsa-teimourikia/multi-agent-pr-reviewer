@@ -1,10 +1,11 @@
 """Small GitHub adapter used by ReviewForge's workflow boundary."""
 
+import os
 from dataclasses import dataclass
 from typing import Any
 
 import requests
-from github import Github
+from github import Github, GithubIntegration
 
 
 @dataclass(frozen=True)
@@ -36,6 +37,29 @@ class GitHubClient:
     def __init__(self, token: str):
         self._token = token
         self._github = Github(token)
+
+    @classmethod
+    def from_app(cls, app_id: str, private_key: str, installation_id: str) -> "GitHubClient":
+        """Create a client from a GitHub App installation token."""
+        integration = GithubIntegration(app_id, private_key)
+        token = integration.get_access_token(int(installation_id)).token
+        return cls(token)
+
+    @classmethod
+    def from_environment(cls) -> "GitHubClient":
+        """Prefer GitHub App credentials, falling back to a static token."""
+        app_id = os.environ.get("GITHUB_APP_ID")
+        private_key = os.environ.get("GITHUB_APP_PRIVATE_KEY")
+        installation_id = os.environ.get("GITHUB_APP_INSTALLATION_ID")
+        if app_id and private_key and installation_id:
+            return cls.from_app(app_id, private_key, installation_id)
+        token = os.environ.get("GITHUB_TOKEN")
+        if token:
+            return cls(token)
+        raise RuntimeError(
+            "Configure GITHUB_TOKEN or GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, "
+            "and GITHUB_APP_INSTALLATION_ID"
+        )
 
     def get_pull_request_diff(self, repository: str, pull_request_number: int) -> str:
         """Fetch the unified diff for a pull request."""

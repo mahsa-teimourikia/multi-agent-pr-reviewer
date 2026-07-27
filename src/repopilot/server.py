@@ -97,7 +97,7 @@ def create_app(
         )
         return response
 
-    client = github or GitHubClient(os.environ["GITHUB_TOKEN"])
+    client = github or GitHubClient.from_environment()
     secret = webhook_secret or os.environ["GITHUB_WEBHOOK_SECRET"]
     maintainer_token = approval_token or os.environ.get("APPROVAL_TOKEN")
     if not maintainer_token:
