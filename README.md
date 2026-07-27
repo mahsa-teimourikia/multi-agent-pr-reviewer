@@ -153,6 +153,17 @@ Use `/healthz` for a liveness probe and `/readyz` for a readiness probe. Readine
 
 ## Container deployment
 
+For a reproducible local or single-host deployment, use the included Compose file:
+
+```bash
+cp .env.example .env
+# edit .env, then validate without printing secrets
+make config-check
+docker compose up --build -d
+```
+
+See [docs/account-setup.md](docs/account-setup.md) for GitHub App, OpenAI, webhook, and deployment setup.
+
 ```bash
 docker build -t reviewforge:local .
 docker run --rm -p 8000:8000 \
