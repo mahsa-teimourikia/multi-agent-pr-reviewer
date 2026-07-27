@@ -2,6 +2,8 @@
 
 Thanks for helping make pull request review safer and more useful.
 
+Please read the [Code of Conduct](CODE_OF_CONDUCT.md) before participating.
+
 ## Local setup
 
 Install Python 3.11+ and [uv](https://docs.astral.sh/uv/), then run:
@@ -16,4 +18,3 @@ Keep credentials in `.env`; never commit tokens or real repository payloads. New
 ## Pull requests
 
 Use a focused branch and describe the behavior change, tests, and any security implications. ReviewForge must preserve the approval boundary: no new GitHub write should happen before an explicit maintainer approval.
-
