@@ -141,6 +141,17 @@ def create_app(
     async def healthz() -> dict[str, str]:
         return {"status": "ok"}
 
+    @app.get("/readyz")
+    async def readyz() -> dict[str, str]:
+        """Report whether persistence and the review worker are ready."""
+        try:
+            delivery_db.execute("SELECT 1").fetchone()
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="Persistence unavailable") from exc
+        if not review_queue.is_alive:
+            raise HTTPException(status_code=503, detail="Review queue unavailable")
+        return {"status": "ready"}
+
     @app.get("/metrics")
     async def metrics_endpoint(authorization: str | None = Header(default=None)) -> Response:
         expected = f"Bearer {maintainer_token}"
