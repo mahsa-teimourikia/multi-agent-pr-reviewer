@@ -200,7 +200,7 @@ def test_approval_endpoint_resumes_and_publishes_review(tmp_path) -> None:
             "/reviews/owner/project/5",
             headers={"Authorization": "Bearer token"},
         )
-        if pending.status_code == 200:
+        if pending.status_code == 200 and pending.json().get("review"):
             break
         time.sleep(0.01)
     assert pending.status_code == 200
