@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import requests
-from github import Github, GithubIntegration
+from github import Auth, Github, GithubIntegration
 
 
 @dataclass(frozen=True)
@@ -36,7 +36,7 @@ class GitHubClient:
 
     def __init__(self, token: str):
         self._token = token
-        self._github = Github(token)
+        self._github = Github(auth=Auth.Token(token))
 
     @classmethod
     def from_app(cls, app_id: str, private_key: str, installation_id: str) -> "GitHubClient":
