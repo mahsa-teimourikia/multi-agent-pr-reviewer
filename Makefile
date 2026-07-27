@@ -4,7 +4,7 @@ install:
 	uv sync
 
 install-dev:
-	uv sync --extra dev --reinstall-package reviewforge
+	uv sync --no-editable --extra dev --reinstall-package reviewforge
 
 test: install-dev
 	uv run pytest

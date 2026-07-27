@@ -135,7 +135,7 @@ def test_approval_endpoint_resumes_and_publishes_review(tmp_path) -> None:
             "X-GitHub-Delivery": "delivery-1",
         },
     )
-    assert started.json() == {"status": "review_started", "interrupted": True}
+    assert started.json() == {"status": "review_queued", "delivery_id": "delivery-1"}
     pending = client.get(
         "/reviews/owner/project/5",
         headers={"Authorization": "Bearer token"},
