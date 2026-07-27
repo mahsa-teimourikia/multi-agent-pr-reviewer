@@ -49,6 +49,13 @@ class ReviewQueue:
                 "CREATE INDEX IF NOT EXISTS review_jobs_ready_idx "
                 "ON review_jobs (status, available_at)"
             )
+            # A process may die after claiming a job but before completing it.
+            # Requeue those claims so a restart never loses review work.
+            connection.execute(
+                "UPDATE review_jobs SET status = 'pending', available_at = ? "
+                "WHERE status = 'running'",
+                (time.time(),),
+            )
 
     def enqueue(self, payload: dict[str, Any]) -> str:
         """Add a review job and return its stable identifier."""
