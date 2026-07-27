@@ -13,8 +13,8 @@ dependencies = [
     "PyGithub>=2.0.0,<3.0.0",
     "requests>=2.32.0,<3.0.0",
     "fastapi>=0.115.0,<1.0.0",
-    "uvicorn[standard]>=0.51.0,<1.0.0",
-    "langgraph-checkpoint-sqlite>=3.0.3,<5.0.0",
+    "uvicorn[standard]>=0.34.0,<1.0.0",
+    "langgraph-checkpoint-sqlite>=3.1.0,<5.0.0",
 ]
 
 [project.optional-dependencies]
