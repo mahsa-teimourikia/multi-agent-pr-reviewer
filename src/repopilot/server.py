@@ -67,7 +67,7 @@ def create_app(
     model: Any | None = None,
     checkpoint_db: str | None = None,
     approval_token: str | None = None,
-    rate_limit_per_minute: int = 60,
+    rate_limit_per_minute: int | None = None,
 ) -> FastAPI:
     """Create the webhook app with injectable dependencies for tests."""
 
@@ -78,6 +78,11 @@ def create_app(
         delivery_db.close()
         checkpoint_context.__exit__(None, None, None)
 
+    configured_rate_limit = rate_limit_per_minute or int(
+        os.environ.get("RATE_LIMIT_PER_MINUTE", "60")
+    )
+    if configured_rate_limit < 1:
+        raise ValueError("RATE_LIMIT_PER_MINUTE must be at least 1")
     app = FastAPI(title="ReviewForge", version="0.1.0", lifespan=lifespan)
     request_counts: dict[str, deque[float]] = defaultdict(deque)
     metrics = {"requests": 0, "rate_limited": 0}
@@ -93,7 +98,7 @@ def create_app(
         timestamps = request_counts[source]
         while timestamps and timestamps[0] <= now - 60:
             timestamps.popleft()
-        if len(timestamps) >= rate_limit_per_minute:
+        if len(timestamps) >= configured_rate_limit:
             metrics["rate_limited"] += 1
             return Response("Too many requests", status_code=429, headers={"Retry-After": "60"})
         timestamps.append(now)

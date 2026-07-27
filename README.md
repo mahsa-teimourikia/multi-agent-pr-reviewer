@@ -78,6 +78,7 @@ GITHUB_REPOSITORY=owner/repository
 GITHUB_WEBHOOK_SECRET=$(openssl rand -hex 32)
 APPROVAL_TOKEN=$(openssl rand -hex 32)
 CHECKPOINT_DB=reviewforge-checkpoints.sqlite
+RATE_LIMIT_PER_MINUTE=60
 ```
 
 ### Verify the installation
