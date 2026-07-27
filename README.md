@@ -164,7 +164,7 @@ docker run --rm -p 8000:8000 \
   reviewforge:local
 ```
 
-The image runs as a non-root user, persists checkpoints under `/data`, and exposes a Docker health check through `/healthz`.
+The image runs as a non-root user, persists checkpoints under `/data`, and exposes a Docker readiness health check through `/readyz`.
 
 Pushing a tag such as `v0.1.0` publishes versioned and `latest` images to GitHub Container Registry through the release workflow.
 
