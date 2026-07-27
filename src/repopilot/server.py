@@ -7,6 +7,7 @@ import logging
 import os
 import time
 import uuid
+from collections import defaultdict, deque
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from html import escape
@@ -66,6 +67,7 @@ def create_app(
     model: Any | None = None,
     checkpoint_db: str | None = None,
     approval_token: str | None = None,
+    rate_limit_per_minute: int = 60,
 ) -> FastAPI:
     """Create the webhook app with injectable dependencies for tests."""
 
@@ -77,6 +79,8 @@ def create_app(
         checkpoint_context.__exit__(None, None, None)
 
     app = FastAPI(title="ReviewForge", version="0.1.0", lifespan=lifespan)
+    request_counts: dict[str, deque[float]] = defaultdict(deque)
+    metrics = {"requests": 0, "rate_limited": 0}
 
     @app.middleware("http")
     async def request_logging(
@@ -84,6 +88,16 @@ def create_app(
     ) -> Response:
         request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
         started = time.perf_counter()
+        now = time.time()
+        source = request.client.host if request.client else "unknown"
+        timestamps = request_counts[source]
+        while timestamps and timestamps[0] <= now - 60:
+            timestamps.popleft()
+        if len(timestamps) >= rate_limit_per_minute:
+            metrics["rate_limited"] += 1
+            return Response("Too many requests", status_code=429, headers={"Retry-After": "60"})
+        timestamps.append(now)
+        metrics["requests"] += 1
         response = await call_next(request)
         duration_ms = round((time.perf_counter() - started) * 1000, 2)
         response.headers["X-Request-ID"] = request_id
@@ -126,6 +140,21 @@ def create_app(
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/metrics")
+    async def metrics_endpoint(authorization: str | None = Header(default=None)) -> Response:
+        expected = f"Bearer {maintainer_token}"
+        if not authorization or not hmac.compare_digest(authorization, expected):
+            raise HTTPException(status_code=401, detail="Invalid metrics credentials")
+        body = "\n".join(
+            [
+                "# TYPE reviewforge_requests_total counter",
+                f"reviewforge_requests_total {metrics['requests']}",
+                "# TYPE reviewforge_rate_limited_total counter",
+                f"reviewforge_rate_limited_total {metrics['rate_limited']}",
+            ]
+        )
+        return Response(body + "\n", media_type="text/plain")
 
     @app.post("/webhooks/github")
     async def github_webhook(
