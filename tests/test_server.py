@@ -37,6 +37,23 @@ def test_health_endpoint(tmp_path) -> None:
     assert response.headers["X-Request-ID"] == "request-123"
 
 
+def test_storage_uses_wal_mode(tmp_path) -> None:
+    database = tmp_path / "wal.db"
+    client = TestClient(
+        create_app(
+            github=object(),
+            webhook_secret="secret",
+            approval_token="token",
+            checkpoint_db=str(database),
+        )
+    )
+    client.close()
+    import sqlite3
+
+    with sqlite3.connect(database) as connection:
+        assert connection.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
+
+
 def test_webhook_rejects_invalid_signature(tmp_path) -> None:
     client = TestClient(
         create_app(
