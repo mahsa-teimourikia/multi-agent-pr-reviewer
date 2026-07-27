@@ -10,9 +10,12 @@ import time
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from html import escape
 from typing import Any
+from urllib.parse import parse_qs
 
 from fastapi import FastAPI, Header, HTTPException, Request, Response
+from fastapi.responses import HTMLResponse
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.types import Command
 from pydantic import BaseModel
@@ -180,6 +183,50 @@ def create_app(
             "review_posted": result.get("review_posted", False),
         }
 
+    @app.get(
+        "/reviews/{repository:path}/{pull_request_number}/approval-ui",
+        response_class=HTMLResponse,
+    )
+    async def approval_ui(repository: str, pull_request_number: int) -> str:
+        """Render a token-protected maintainer approval form."""
+        return _approval_page(repository, pull_request_number)
+
+    @app.post(
+        "/reviews/{repository:path}/{pull_request_number}/approval-ui",
+        response_class=HTMLResponse,
+    )
+    async def submit_approval_ui(
+        repository: str, pull_request_number: int, request: Request
+    ) -> str:
+        form = parse_qs((await request.body()).decode("utf-8"))
+        token = form.get("token", [""])[0]
+        expected = f"Bearer {maintainer_token}"
+        if not hmac.compare_digest(f"Bearer {token}", expected):
+            raise HTTPException(status_code=401, detail="Invalid approval credentials")
+        workflow = build_review_workflow(
+            model=model,
+            publisher=client.post_review,
+            checkpointer=checkpointer,
+        )
+        thread_id = f"{repository}#{pull_request_number}"
+        snapshot = workflow.get_state({"configurable": {"thread_id": thread_id}})
+        if not snapshot.values:
+            raise HTTPException(status_code=404, detail="Review not found")
+        decision = form.get("approved", [""])[0]
+        if decision in {"true", "false"}:
+            result = workflow.invoke(
+                Command(resume={"approved": decision == "true"}),
+                {"configurable": {"thread_id": thread_id}},
+            )
+            message = "Review published." if result.get("review_posted") else "Review rejected."
+            return _approval_page(repository, pull_request_number, message=message)
+        return _approval_page(
+            repository,
+            pull_request_number,
+            review=str(snapshot.values.get("final_review", "")),
+            token=token,
+        )
+
     @app.get("/reviews/{repository:path}/{pull_request_number}")
     async def review_status(
         repository: str,
@@ -215,6 +262,36 @@ def create_app(
         }
 
     return app
+
+
+def _approval_page(
+    repository: str,
+    pull_request_number: int,
+    *,
+    review: str = "",
+    token: str = "",
+    message: str = "",
+) -> str:
+    """Build the small dependency-free approval page."""
+    review_html = f"<pre>{escape(review)}</pre>" if review else ""
+    message_html = f"<p role='status'>{escape(message)}</p>" if message else ""
+    token_html = escape(token)
+    actions = (
+        "<button name='approved' value='true'>Approve and publish</button>"
+        "<button name='approved' value='false'>Reject</button>"
+        if review
+        else "<button>Load review</button>"
+    )
+    return f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>ReviewForge approval</title>
+<style>body{{font:16px system-ui;max-width:900px;margin:3rem auto;padding:0 1rem}}
+pre{{white-space:pre-wrap;background:#f4f4f4;padding:1rem}}
+button{{margin-right:.5rem;padding:.6rem 1rem}}</style>
+</head><body><h1>ReviewForge approval</h1><p>{escape(repository)} #{pull_request_number}</p>
+{message_html}{review_html}<form method="post">
+<label>Approval token <input type="password" name="token" value="{token_html}"
+required></label><br><br>{actions}
+</form></body></html>"""
 
 
 def main() -> None:
