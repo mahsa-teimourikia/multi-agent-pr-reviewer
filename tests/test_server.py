@@ -54,6 +54,35 @@ def test_storage_uses_wal_mode(tmp_path) -> None:
         assert connection.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
 
 
+def test_metrics_requires_auth_and_reports_requests(tmp_path) -> None:
+    client = TestClient(
+        create_app(
+            github=object(),
+            webhook_secret="secret",
+            approval_token="token",
+            checkpoint_db=str(tmp_path / "metrics.db"),
+        )
+    )
+    assert client.get("/metrics").status_code == 401
+    response = client.get("/metrics", headers={"Authorization": "Bearer token"})
+    assert response.status_code == 200
+    assert "reviewforge_requests_total" in response.text
+
+
+def test_rate_limit_returns_429(tmp_path) -> None:
+    client = TestClient(
+        create_app(
+            github=object(),
+            webhook_secret="secret",
+            approval_token="token",
+            checkpoint_db=str(tmp_path / "limit.db"),
+            rate_limit_per_minute=1,
+        )
+    )
+    assert client.get("/healthz").status_code == 200
+    assert client.get("/healthz").status_code == 429
+
+
 def test_webhook_rejects_invalid_signature(tmp_path) -> None:
     client = TestClient(
         create_app(

@@ -142,6 +142,8 @@ curl -X POST http://localhost:8000/reviews/owner/project/42/approval \
 
 The approval endpoint requires `APPROVAL_TOKEN`. For production, a GitHub App is recommended: ReviewForge exchanges the App private key and installation ID for a short-lived installation token at startup. The server stores LangGraph checkpoints, webhook delivery IDs, and queued jobs in SQLite at `CHECKPOINT_DB` (default: `reviewforge-checkpoints.sqlite`) with WAL mode and a persistent volume. Back up this file and mount it at the same path after restarts. SQLite is intended for one server instance; multiple instances require a shared database/checkpointer and a queue service with distributed job leases.
 
+Requests are rate limited to 60 per source IP per minute by default; override the limit when constructing the app for tests or controlled deployments. Authenticated Prometheus-style counters are available at `/metrics` using `Authorization: Bearer $APPROVAL_TOKEN`.
+
 ## Container deployment
 
 ```bash
