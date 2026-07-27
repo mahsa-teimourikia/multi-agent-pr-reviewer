@@ -47,20 +47,80 @@ The GitHub publisher is never called until the approval value is `True`.
 
 For a `pull_request` webhook, pass the JSON payload and a configured `GitHubClient` to `start_review_from_event`. ReviewForge fetches the diff, runs the specialist graph, and returns an approval interrupt. Persist the thread ID and resume it only after your maintainer UI records an approval decision. A GitHub App or fine-grained token with pull request read/write permission can be used by the adapter.
 
-## Quick start
+## Setup and local run
 
-Requirements: Python 3.11+ and [uv](https://docs.astral.sh/uv/).
+### Prerequisites
+
+- Python 3.11 (the verified local runtime)
+- [uv](https://docs.astral.sh/uv/)
+- A GitHub token or GitHub App installation token with pull request read/write access
+- An OpenAI API key
+
+### Install
 
 ```bash
-make install-dev
+git clone https://github.com/mahsa-teimourikia/multi-agent-pr-reviewer.git
+cd multi-agent-pr-reviewer
 cp .env.example .env
+make install-dev
+```
+
+Edit `.env` and set every value below. Generate unique secrets; never commit `.env`:
+
+```dotenv
+OPENAI_API_KEY=your-openai-api-key
+GITHUB_TOKEN=your-github-token
+GITHUB_REPOSITORY=owner/repository
+GITHUB_WEBHOOK_SECRET=$(openssl rand -hex 32)
+APPROVAL_TOKEN=$(openssl rand -hex 32)
+CHECKPOINT_DB=reviewforge-checkpoints.sqlite
+```
+
+### Verify the installation
+
+```bash
 make check
+uv run reviewforge
+```
+
+`make check` runs Ruff, strict mypy, pip-audit, and the test suite. The `reviewforge` command is a smoke-test CLI; the webhook server is started separately.
+
+### Start the server
+
+```bash
 uv run reviewforge-server
 ```
 
-The environment variables in `.env.example` define the integration contract. Tokens must be supplied at runtime and should never be committed.
+The server listens on `http://localhost:8000`. Confirm it is running:
 
-The webhook endpoint is `POST /webhooks/github`; configure GitHub to send `pull_request` events to it and set `GITHUB_WEBHOOK_SECRET` to the same secret. After reviewing the interrupt payload, a maintainer can approve or reject it through:
+```bash
+curl http://localhost:8000/healthz
+# {"status":"ok"}
+```
+
+The server persists paused review state and webhook delivery IDs in the SQLite file configured by `CHECKPOINT_DB`.
+
+### Configure the GitHub webhook
+
+In the repository’s **Settings → Webhooks → Add webhook**:
+
+1. Set **Payload URL** to `https://your-host.example.com/webhooks/github`.
+2. Set **Content type** to `application/json`.
+3. Set **Secret** to the exact value of `GITHUB_WEBHOOK_SECRET`.
+4. Select **Let me select individual events**, enable **Pull requests**, and save.
+
+ReviewForge processes `opened`, `synchronize`, and `reopened` pull request actions. Other events are acknowledged and ignored.
+
+### Review and approve a pending PR
+
+After a webhook arrives, inspect the generated review:
+
+```bash
+curl http://localhost:8000/reviews/owner/project/42 \
+  -H "Authorization: Bearer $APPROVAL_TOKEN"
+```
+
+Approve it to publish the GitHub review, or set `approved` to `false` to reject it:
 
 Webhook requests are acknowledged before the LLM review runs in a background task. For multi-instance or high-volume production deployments, replace the in-process task runner with a durable queue such as Redis or a managed job service.
 
@@ -73,13 +133,6 @@ curl -X POST http://localhost:8000/reviews/owner/project/42/approval \
 
 The approval endpoint requires `APPROVAL_TOKEN`. The server stores LangGraph checkpoints in SQLite at `CHECKPOINT_DB` (default: `reviewforge-checkpoints.sqlite`), so paused reviews survive normal process restarts. For multiple server instances, use a shared production database/checkpointer implementation.
 
-Maintainer clients can inspect a pending review before deciding:
-
-```bash
-curl http://localhost:8000/reviews/owner/project/42 \
-  -H "Authorization: Bearer $APPROVAL_TOKEN"
-```
-
 ## Container deployment
 
 ```bash
@@ -88,6 +141,7 @@ docker run --rm -p 8000:8000 \
   -e OPENAI_API_KEY \
   -e GITHUB_TOKEN \
   -e GITHUB_WEBHOOK_SECRET \
+  -e APPROVAL_TOKEN \
   -v "$PWD/data:/data" \
   reviewforge:local
 ```
