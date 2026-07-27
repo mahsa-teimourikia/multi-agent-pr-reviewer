@@ -5,7 +5,6 @@ import hmac
 import json
 import logging
 import os
-import sqlite3
 import time
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -23,6 +22,7 @@ from pydantic import BaseModel
 from .github import GitHubClient
 from .queue import ReviewQueue
 from .service import start_review_from_event
+from .storage import connect_sqlite
 from .workflow import build_review_workflow
 
 logger = logging.getLogger("reviewforge")
@@ -110,9 +110,8 @@ def create_app(
     checkpoint_path = checkpoint_db or os.environ.get(
         "CHECKPOINT_DB", "reviewforge-checkpoints.sqlite"
     )
-    delivery_db = sqlite3.connect(
-        checkpoint_db or os.environ.get("CHECKPOINT_DB", "reviewforge-checkpoints.sqlite"),
-        check_same_thread=False,
+    delivery_db = connect_sqlite(
+        checkpoint_db or os.environ.get("CHECKPOINT_DB", "reviewforge-checkpoints.sqlite")
     )
     delivery_db.execute(
         "CREATE TABLE IF NOT EXISTS webhook_deliveries "

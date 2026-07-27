@@ -11,6 +11,8 @@ import uuid
 from collections.abc import Callable
 from typing import Any, cast
 
+from .storage import connect_sqlite
+
 logger = logging.getLogger("reviewforge")
 
 
@@ -27,7 +29,7 @@ class ReviewQueue:
         self._thread.start()
 
     def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.database, timeout=30)
+        connection = connect_sqlite(self.database)
         connection.row_factory = sqlite3.Row
         return connection
 
