@@ -1,11 +1,11 @@
 [project]
-name = "repopilot"
+name = "reviewforge"
 version = "0.1.0"
 description = "An open-source multi-agent GitHub pull request reviewer built with LangGraph."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-authors = [{ name = "RepoPilot contributors" }]
+authors = [{ name = "ReviewForge contributors" }]
 dependencies = [
     "langgraph>=1.0.10,<2.0.0",
     "langchain-openai>=1.1.14,<2.0.0",
@@ -22,12 +22,13 @@ dev = [
     "pytest>=9.0.3,<10.0.0",
     "pytest-asyncio>=0.24.0,<2.0.0",
     "ruff>=0.9.0,<1.0.0",
-    "mypy>=1.13.0,<2.0.0",
+    "mypy>=2.3.0,<3.0.0",
     "pip-audit>=2.9.0,<3.0.0",
 ]
 
 [project.scripts]
 repopilot = "repopilot.cli:main"
+reviewforge = "repopilot.cli:main"
 reviewforge-server = "repopilot.server:main"
 
 [build-system]

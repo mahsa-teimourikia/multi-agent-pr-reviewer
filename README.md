@@ -62,6 +62,8 @@ The environment variables in `.env.example` define the integration contract. Tok
 
 The webhook endpoint is `POST /webhooks/github`; configure GitHub to send `pull_request` events to it and set `GITHUB_WEBHOOK_SECRET` to the same secret. After reviewing the interrupt payload, a maintainer can approve or reject it through:
 
+Webhook requests are acknowledged before the LLM review runs in a background task. For multi-instance or high-volume production deployments, replace the in-process task runner with a durable queue such as Redis or a managed job service.
+
 ```bash
 curl -X POST http://localhost:8000/reviews/owner/project/42/approval \
   -H "Authorization: Bearer $APPROVAL_TOKEN" \
@@ -92,12 +94,15 @@ docker run --rm -p 8000:8000 \
 
 The image runs as a non-root user, persists checkpoints under `/data`, and exposes a Docker health check through `/healthz`.
 
+Pushing a tag such as `v0.1.0` publishes versioned and `latest` images to GitHub Container Registry through the release workflow.
+
 ## Development
 
 ```bash
 make install-dev  # create/sync the uv environment
 make check        # lint and test
 make format       # format source and tests
+uv run reviewforge # print the CLI status message
 ```
 
 ## License

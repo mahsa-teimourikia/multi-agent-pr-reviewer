@@ -12,7 +12,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, Header, HTTPException, Request, Response
+from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Request, Response
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.types import Command
 from pydantic import BaseModel
@@ -36,6 +36,23 @@ def verify_signature(body: bytes, signature: str | None, secret: str) -> bool:
         return False
     expected = "sha256=" + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
     return hmac.compare_digest(signature, expected)
+
+
+def run_review_job(
+    payload: dict[str, Any],
+    github: GitHubClient,
+    model: Any | None,
+    checkpoint_path: str,
+) -> None:
+    """Run a background review with a worker-owned checkpoint connection."""
+    with SqliteSaver.from_conn_string(checkpoint_path) as worker_checkpointer:
+        worker_checkpointer.setup()
+        start_review_from_event(
+            payload,
+            github,
+            model=model,
+            checkpointer=worker_checkpointer,
+        )
 
 
 def create_app(
@@ -85,6 +102,9 @@ def create_app(
     )
     checkpointer = checkpoint_context.__enter__()
     checkpointer.setup()
+    checkpoint_path = checkpoint_db or os.environ.get(
+        "CHECKPOINT_DB", "reviewforge-checkpoints.sqlite"
+    )
     delivery_db = sqlite3.connect(
         checkpoint_db or os.environ.get("CHECKPOINT_DB", "reviewforge-checkpoints.sqlite"),
         check_same_thread=False,
@@ -102,6 +122,7 @@ def create_app(
     @app.post("/webhooks/github")
     async def github_webhook(
         request: Request,
+        background_tasks: BackgroundTasks,
         x_github_event: str = Header(default=""),
         x_hub_signature_256: str | None = Header(default=None),
         x_github_delivery: str | None = Header(default=None),
@@ -126,8 +147,14 @@ def create_app(
             delivery_db.commit()
             if not inserted:
                 return {"status": "duplicate", "delivery_id": x_github_delivery}
-        result = start_review_from_event(payload, client, model=model, checkpointer=checkpointer)
-        return {"status": "review_started", "interrupted": "__interrupt__" in result}
+        background_tasks.add_task(
+            run_review_job,
+            payload,
+            client,
+            model,
+            checkpoint_path,
+        )
+        return {"status": "review_queued", "delivery_id": x_github_delivery}
 
     @app.post("/reviews/{repository:path}/{pull_request_number}/approval")
     async def approve_review(
