@@ -1,22 +1,22 @@
 .PHONY: install install-dev test lint typecheck audit format check docker-build clean
 
 install:
-	uv sync
+	uv sync --no-editable
 
 install-dev:
 	uv sync --no-editable --extra dev --reinstall-package reviewforge
 
 test: install-dev
-	uv run pytest
+	uv run --no-sync pytest
 
 lint:
-	uv run ruff check .
+	uv run --no-sync ruff check .
 
 typecheck:
-	uv run mypy src
+	uv run --no-sync mypy src
 
 audit: install-dev
-	uv run pip-audit
+	uv run --no-sync pip-audit
 
 format:
 	uv run ruff format .

@@ -38,6 +38,23 @@ def verify_signature(body: bytes, signature: str | None, secret: str) -> bool:
     return hmac.compare_digest(signature, expected)
 
 
+def run_review_job(
+    payload: dict[str, Any],
+    github: GitHubClient,
+    model: Any | None,
+    checkpoint_path: str,
+) -> None:
+    """Run a background review with a worker-owned checkpoint connection."""
+    with SqliteSaver.from_conn_string(checkpoint_path) as worker_checkpointer:
+        worker_checkpointer.setup()
+        start_review_from_event(
+            payload,
+            github,
+            model=model,
+            checkpointer=worker_checkpointer,
+        )
+
+
 def create_app(
     *,
     github: GitHubClient | None = None,
@@ -85,6 +102,9 @@ def create_app(
     )
     checkpointer = checkpoint_context.__enter__()
     checkpointer.setup()
+    checkpoint_path = checkpoint_db or os.environ.get(
+        "CHECKPOINT_DB", "reviewforge-checkpoints.sqlite"
+    )
     delivery_db = sqlite3.connect(
         checkpoint_db or os.environ.get("CHECKPOINT_DB", "reviewforge-checkpoints.sqlite"),
         check_same_thread=False,
@@ -128,11 +148,11 @@ def create_app(
             if not inserted:
                 return {"status": "duplicate", "delivery_id": x_github_delivery}
         background_tasks.add_task(
-            start_review_from_event,
+            run_review_job,
             payload,
             client,
-            model=model,
-            checkpointer=checkpointer,
+            model,
+            checkpoint_path,
         )
         return {"status": "review_queued", "delivery_id": x_github_delivery}
 
