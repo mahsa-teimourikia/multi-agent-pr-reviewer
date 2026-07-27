@@ -215,3 +215,39 @@ def test_pending_review_survives_server_restart(tmp_path) -> None:
         )
         assert approved.json()["review_posted"] is True
         assert second_github.published is True
+
+
+def test_approval_ui_loads_and_publishes_review(tmp_path) -> None:
+    body = (
+        b'{"action":"opened","repository":{"full_name":"owner/project"},'
+        b'"pull_request":{"number":9}}'
+    )
+    signature = "sha256=" + hmac.new(b"secret", body, hashlib.sha256).hexdigest()
+    github = FakeGitHub()
+    with TestClient(
+        create_app(
+            github=github,
+            webhook_secret="secret",
+            model=FakeModel(),
+            approval_token="token",
+            checkpoint_db=str(tmp_path / "ui.db"),
+        )
+    ) as client:
+        client.post(
+            "/webhooks/github",
+            content=body,
+            headers={"X-GitHub-Event": "pull_request", "X-Hub-Signature-256": signature},
+        )
+        time.sleep(0.05)
+        page = client.post(
+            "/reviews/owner/project/9/approval-ui",
+            data={"token": "token"},
+        )
+        assert page.status_code == 200
+        assert "Test" in page.text
+        published = client.post(
+            "/reviews/owner/project/9/approval-ui",
+            data={"token": "token", "approved": "true"},
+        )
+        assert "Review published" in published.text
+        assert github.published is True

@@ -122,6 +122,11 @@ curl http://localhost:8000/reviews/owner/project/42 \
 
 Approve it to publish the GitHub review, or set `approved` to `false` to reject it:
 
+For a browser-based maintainer flow, open
+`/reviews/owner/project/42/approval-ui`. Enter `APPROVAL_TOKEN` to load the review,
+then choose **Approve and publish** or **Reject**. The page uses the same approval
+boundary as the API and does not expose the token in the URL.
+
 Webhook requests are acknowledged after the payload is written to a durable SQLite review queue. A worker drains pending jobs, retries transient failures up to two times, and resumes queued work after a process restart. For multiple server instances or high-volume production deployments, use a shared database and a dedicated queue service with a single worker lease per job.
 
 ```bash
