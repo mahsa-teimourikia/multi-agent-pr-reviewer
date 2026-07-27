@@ -12,12 +12,13 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Request, Response
+from fastapi import FastAPI, Header, HTTPException, Request, Response
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.types import Command
 from pydantic import BaseModel
 
 from .github import GitHubClient
+from .queue import ReviewQueue
 from .service import start_review_from_event
 from .workflow import build_review_workflow
 
@@ -68,6 +69,7 @@ def create_app(
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         yield
+        review_queue.close()
         delivery_db.close()
         checkpoint_context.__exit__(None, None, None)
 
@@ -114,6 +116,10 @@ def create_app(
         "(delivery_id TEXT PRIMARY KEY, received_at TEXT DEFAULT CURRENT_TIMESTAMP)"
     )
     delivery_db.commit()
+    review_queue = ReviewQueue(
+        checkpoint_path,
+        lambda payload: run_review_job(payload, client, model, checkpoint_path),
+    )
 
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:
@@ -122,7 +128,6 @@ def create_app(
     @app.post("/webhooks/github")
     async def github_webhook(
         request: Request,
-        background_tasks: BackgroundTasks,
         x_github_event: str = Header(default=""),
         x_hub_signature_256: str | None = Header(default=None),
         x_github_delivery: str | None = Header(default=None),
@@ -147,13 +152,7 @@ def create_app(
             delivery_db.commit()
             if not inserted:
                 return {"status": "duplicate", "delivery_id": x_github_delivery}
-        background_tasks.add_task(
-            run_review_job,
-            payload,
-            client,
-            model,
-            checkpoint_path,
-        )
+        review_queue.enqueue(payload)
         return {"status": "review_queued", "delivery_id": x_github_delivery}
 
     @app.post("/reviews/{repository:path}/{pull_request_number}/approval")

@@ -122,7 +122,7 @@ curl http://localhost:8000/reviews/owner/project/42 \
 
 Approve it to publish the GitHub review, or set `approved` to `false` to reject it:
 
-Webhook requests are acknowledged before the LLM review runs in a background task. For multi-instance or high-volume production deployments, replace the in-process task runner with a durable queue such as Redis or a managed job service.
+Webhook requests are acknowledged after the payload is written to a durable SQLite review queue. A worker drains pending jobs, retries transient failures up to two times, and resumes queued work after a process restart. For multiple server instances or high-volume production deployments, use a shared database and a dedicated queue service with a single worker lease per job.
 
 ```bash
 curl -X POST http://localhost:8000/reviews/owner/project/42/approval \
