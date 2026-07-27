@@ -44,3 +44,35 @@ def test_github_client_uses_app_installation_token(monkeypatch) -> None:
     monkeypatch.setenv("GITHUB_APP_INSTALLATION_ID", "7")
     client = GitHubClient.from_environment()
     assert client._token == "installation-token"
+
+
+def test_inline_review_uses_head_commit_and_locations() -> None:
+    class FakePullRequest:
+        def create_review(self, **kwargs):
+            self.review = kwargs
+            return kwargs
+
+    class FakeRepo:
+        def __init__(self):
+            self.pull_request = FakePullRequest()
+
+        def get_pull(self, _number):
+            return self.pull_request
+
+    class FakeGithub:
+        def __init__(self):
+            self.repo = FakeRepo()
+
+        def get_repo(self, _name):
+            return self.repo
+
+    client = GitHubClient("token")
+    client._github = FakeGithub()
+    finding = type("Finding", (), {
+        "title": "Bug", "body": "Fix this", "path": "src/app.py", "line": 8
+    })()
+    client.post_review_with_comments("owner/project", 1, "summary", [finding], "sha123")
+    review = client._github.repo.pull_request.review
+    assert review["commit"] == "sha123"
+    assert review["comments"][0]["path"] == "src/app.py"
+    assert review["comments"][0]["line"] == 8
