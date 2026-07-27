@@ -115,6 +115,10 @@ In the repository’s **Settings → Webhooks → Add webhook**:
 
 ReviewForge processes `opened`, `synchronize`, and `reopened` pull request actions. Other events are acknowledged and ignored.
 
+When a reviewer finding includes a valid file and line location, the approved GitHub review
+uses the webhook head commit SHA to add a right-side inline comment. Findings without safe
+patch locations remain in the summary review only.
+
 ### Review and approve a pending PR
 
 After a webhook arrives, inspect the generated review:

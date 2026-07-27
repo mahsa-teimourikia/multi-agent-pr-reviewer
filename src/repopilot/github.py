@@ -64,7 +64,7 @@ class GitHubClient:
     def get_pull_request_diff(self, repository: str, pull_request_number: int) -> str:
         """Fetch the unified diff for a pull request."""
         repo = self._github.get_repo(repository)
-        pull_request = repo.get_pull(pull_request_number)
+        pull_request: Any = repo.get_pull(pull_request_number)
         response = requests.get(
             pull_request.diff_url,
             headers={
@@ -79,5 +79,26 @@ class GitHubClient:
     def post_review(self, repository: str, pull_request_number: int, body: str) -> Any:
         """Publish a pull request review; callers must enforce HITL first."""
         repo = self._github.get_repo(repository)
-        pull_request = repo.get_pull(pull_request_number)
+        pull_request: Any = repo.get_pull(pull_request_number)
         return pull_request.create_review(body=body, event="COMMENT")
+
+    def post_review_with_comments(
+        self,
+        repository: str,
+        pull_request_number: int,
+        body: str,
+        findings: list[Any],
+        commit_sha: str,
+    ) -> Any:
+        """Publish a summary plus safe right-side inline comments."""
+        repo = self._github.get_repo(repository)
+        pull_request: Any = repo.get_pull(pull_request_number)
+        comments = [
+            {"body": f"**{finding.title}** — {finding.body}", "path": finding.path,
+             "line": finding.line, "side": "RIGHT"}
+            for finding in findings
+            if finding.path and finding.line
+        ]
+        return pull_request.create_review(
+            body=body, event="COMMENT", commit=commit_sha, comments=comments
+        )
