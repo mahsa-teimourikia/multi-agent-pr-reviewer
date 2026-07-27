@@ -23,6 +23,7 @@ def start_review_from_event(
     workflow = build_review_workflow(
         model=model,
         publisher=github.post_review,
+        inline_publisher=getattr(github, "post_review_with_comments", None),
         checkpointer=checkpointer,
     )
     config = {"configurable": {"thread_id": f"{event.repository}#{event.pull_request_number}"}}
@@ -30,6 +31,7 @@ def start_review_from_event(
         {
             "repository": event.repository,
             "pull_request_number": event.pull_request_number,
+            "commit_sha": payload.get("pull_request", {}).get("head", {}).get("sha", ""),
             "diff": diff,
         },
         config,

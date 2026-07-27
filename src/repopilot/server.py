@@ -199,6 +199,7 @@ def create_app(
         workflow = build_review_workflow(
             model=model,
             publisher=client.post_review,
+            inline_publisher=getattr(client, "post_review_with_comments", None),
             checkpointer=checkpointer,
         )
         thread_id = f"{repository}#{pull_request_number}"
@@ -234,6 +235,7 @@ def create_app(
         workflow = build_review_workflow(
             model=model,
             publisher=client.post_review,
+            inline_publisher=getattr(client, "post_review_with_comments", None),
             checkpointer=checkpointer,
         )
         thread_id = f"{repository}#{pull_request_number}"
@@ -267,6 +269,7 @@ def create_app(
         workflow = build_review_workflow(
             model=model,
             publisher=client.post_review,
+            inline_publisher=getattr(client, "post_review_with_comments", None),
             checkpointer=checkpointer,
         )
         snapshot = workflow.get_state(

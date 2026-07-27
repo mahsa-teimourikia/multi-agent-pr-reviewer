@@ -22,6 +22,7 @@ class ReviewState(TypedDict, total=False):
 
     repository: str
     pull_request_number: int
+    commit_sha: str
     diff: str
     requested_agents: list[str]
     security_findings: list[Finding]

@@ -35,18 +35,30 @@ def approval_gate(state: ReviewState) -> dict[str, bool]:
 
 
 def publish_review(
-    state: ReviewState, publisher: Callable[[str, int, str], Any]
+    state: ReviewState,
+    publisher: Callable[[str, int, str], Any],
+    inline_publisher: Callable[[str, int, str, list[Any], str], Any] | None = None,
 ) -> dict[str, bool]:
     """Publish only after approval; the publisher is injected for testing."""
     if not state.get("approval", False):
         return {"review_posted": False}
-    publisher(state["repository"], state["pull_request_number"], state["final_review"])
+    if inline_publisher and state.get("commit_sha"):
+        findings = state.get("security_findings", []) + state.get("quality_findings", [])
+        located = [finding for finding in findings if finding.path and finding.line]
+        if located:
+            inline_publisher(
+                state["repository"], state["pull_request_number"], state["final_review"],
+                located, state["commit_sha"],
+            )
+    else:
+        publisher(state["repository"], state["pull_request_number"], state["final_review"])
     return {"review_posted": True}
 
 
 def build_review_workflow(
     model: Any | None = None,
     publisher: Callable[[str, int, str], Any] | None = None,
+    inline_publisher: Callable[[str, int, str, list[Any], str], Any] | None = None,
     checkpointer: Any | None = None,
 ) -> Any:
     """Build a review workflow that can pause and resume by thread ID."""
@@ -58,7 +70,9 @@ def build_review_workflow(
     builder.add_node("quality_agent", _review_node(llm, quality_prompt))  # type: ignore[arg-type]
     builder.add_node("merge_findings", merge_findings)
     builder.add_node("approval_gate", approval_gate)
-    builder.add_node("publish_review", lambda state: publish_review(state, post))
+    builder.add_node(
+        "publish_review", lambda state: publish_review(state, post, inline_publisher)
+    )
     builder.add_edge(START, "supervisor")
     builder.add_conditional_edges(
         "supervisor",
