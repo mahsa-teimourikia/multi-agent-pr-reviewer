@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import time
 
 from fastapi.testclient import TestClient
 
@@ -136,10 +137,14 @@ def test_approval_endpoint_resumes_and_publishes_review(tmp_path) -> None:
         },
     )
     assert started.json() == {"status": "review_queued", "delivery_id": "delivery-1"}
-    pending = client.get(
-        "/reviews/owner/project/5",
-        headers={"Authorization": "Bearer token"},
-    )
+    for _ in range(20):
+        pending = client.get(
+            "/reviews/owner/project/5",
+            headers={"Authorization": "Bearer token"},
+        )
+        if pending.status_code == 200:
+            break
+        time.sleep(0.01)
     assert pending.status_code == 200
     assert pending.json()["status"] == "pending"
     assert "Test" in pending.json()["review"]
