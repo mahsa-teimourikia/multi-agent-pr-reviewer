@@ -49,9 +49,17 @@ For a `pull_request` webhook, pass the JSON payload and a configured `GitHubClie
 
 ## Setup and local run
 
+There are three supported ways to run ReviewForge:
+
+1. **Local `uv`** — best for development and testing.
+2. **Docker Compose** — easiest single-host deployment with persistent storage.
+3. **Docker/OCI image** — for an existing VM, container platform, or Kubernetes deployment.
+
+All methods run the same webhook server and require the same environment variables.
+
 ### Prerequisites
 
-- Python 3.11 (the verified local runtime)
+- Python 3.11–3.13 (Python 3.11 is the default verified runtime)
 - [uv](https://docs.astral.sh/uv/)
 - A GitHub token or GitHub App installation token with pull request read/write access
 - An OpenAI API key
@@ -65,7 +73,8 @@ cp .env.example .env
 make install-dev
 ```
 
-Edit `.env` and set every value below. Generate unique secrets; never commit `.env`:
+Edit `.env` and set every value below. Do not use shell command substitutions inside `.env`;
+generate the values first, then paste the results. Never commit `.env`:
 
 ```dotenv
 OPENAI_API_KEY=your-openai-api-key
@@ -75,17 +84,27 @@ GITHUB_TOKEN=your-github-token
 # GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----..."
 # GITHUB_APP_INSTALLATION_ID=12345678
 GITHUB_REPOSITORY=owner/repository
-GITHUB_WEBHOOK_SECRET=$(openssl rand -hex 32)
-APPROVAL_TOKEN=$(openssl rand -hex 32)
+GITHUB_WEBHOOK_SECRET=paste-a-random-64-character-value
+APPROVAL_TOKEN=paste-a-different-random-64-character-value
 CHECKPOINT_DB=reviewforge-checkpoints.sqlite
 RATE_LIMIT_PER_MINUTE=60
 ```
+
+Generate secrets with:
+
+```bash
+openssl rand -hex 32
+```
+
+Use either `GITHUB_TOKEN` or all three `GITHUB_APP_*` values, not both. GitHub App
+configuration is recommended for production; see [docs/account-setup.md](docs/account-setup.md).
 
 ### Verify the installation
 
 ```bash
 make check
 uv run reviewforge
+uv run python scripts/verify_config.py
 ```
 
 `make check` runs Ruff, strict mypy, pip-audit, and the test suite. The `reviewforge` command is a smoke-test CLI; the webhook server is started separately.
@@ -103,7 +122,8 @@ curl http://localhost:8000/healthz
 # {"status":"ok"}
 ```
 
-The server persists paused review state and webhook delivery IDs in the SQLite file configured by `CHECKPOINT_DB`.
+The server persists paused review state, webhook delivery IDs, and queued jobs in the SQLite file
+configured by `CHECKPOINT_DB`. Keep this file on persistent storage.
 
 ### Configure the GitHub webhook
 
@@ -131,19 +151,22 @@ curl http://localhost:8000/reviews/owner/project/42 \
 
 Approve it to publish the GitHub review, or set `approved` to `false` to reject it:
 
-For a browser-based maintainer flow, open
-`/reviews/owner/project/42/approval-ui`. Enter `APPROVAL_TOKEN` to load the review,
-then choose **Approve and publish** or **Reject**. The page uses the same approval
-boundary as the API and does not expose the token in the URL.
-
-Webhook requests are acknowledged after the payload is written to a durable SQLite review queue. A worker drains pending jobs, retries transient failures up to two times, and resumes queued work after a process restart. For multiple server instances or high-volume production deployments, use a shared database and a dedicated queue service with a single worker lease per job.
-
 ```bash
 curl -X POST http://localhost:8000/reviews/owner/project/42/approval \
   -H "Authorization: Bearer $APPROVAL_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"approved":true}'
 ```
+
+For a browser-based maintainer flow, open
+`/reviews/owner/project/42/approval-ui`. Enter `APPROVAL_TOKEN` to load the review,
+then choose **Approve and publish** or **Reject**. The page uses the same approval
+boundary as the API and does not expose the token in the URL.
+
+Webhook requests are acknowledged after the payload is written to a durable SQLite review queue.
+A worker drains pending jobs, retries transient failures up to two times, and resumes queued work
+after a process restart. SQLite mode is for one server instance; multiple instances require a
+shared database/checkpointer and a queue service with distributed job leases.
 
 The approval endpoint requires `APPROVAL_TOKEN`. For production, a GitHub App is recommended: ReviewForge exchanges the App private key and installation ID for a short-lived installation token at startup. The server stores LangGraph checkpoints, webhook delivery IDs, and queued jobs in SQLite at `CHECKPOINT_DB` (default: `reviewforge-checkpoints.sqlite`) with WAL mode and a persistent volume. Back up this file and mount it at the same path after restarts. SQLite is intended for one server instance; multiple instances require a shared database/checkpointer and a queue service with distributed job leases.
 
@@ -176,6 +199,37 @@ docker run --rm -p 8000:8000 \
 ```
 
 The image runs as a non-root user, persists checkpoints under `/data`, and exposes a Docker readiness health check through `/readyz`.
+
+### Docker Compose
+
+Compose reads `.env`, persists state in the named `reviewforge-data` volume, and restarts the
+service automatically:
+
+```bash
+docker compose up --build -d
+docker compose ps
+docker compose logs -f reviewforge
+curl http://localhost:8000/readyz
+docker compose down             # keeps the named volume
+docker compose down -v          # deletes review state; use with care
+```
+
+### Plain Docker
+
+Use a host directory when you do not use Compose. The directory must be writable by the container:
+
+```bash
+mkdir -p data
+docker build -t reviewforge:local .
+docker run --rm -p 8000:8000 --env-file .env \
+  -v "$PWD/data:/data" reviewforge:local
+```
+
+### Existing container platform
+
+Build and publish the image, configure the variables from `.env.example` in the platform’s secret
+store, expose port `8000`, and set the health check path to `/readyz`. Attach persistent storage at
+`/data`. Configure the GitHub webhook only after the public HTTPS URL is available.
 
 Pushing a tag such as `v0.1.0` publishes versioned and `latest` images to GitHub Container Registry through the release workflow.
 
