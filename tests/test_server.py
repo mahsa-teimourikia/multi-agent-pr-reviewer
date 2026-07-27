@@ -250,6 +250,16 @@ def test_pending_review_survives_server_restart(tmp_path) -> None:
             headers={"X-GitHub-Event": "pull_request", "X-Hub-Signature-256": signature},
         )
         assert response.status_code == 200
+        for _ in range(20):
+            persisted = first.get(
+                "/reviews/owner/project/8",
+                headers={"Authorization": "Bearer token"},
+            )
+            if persisted.status_code == 200 and persisted.json().get("review"):
+                break
+            time.sleep(0.01)
+        assert persisted.status_code == 200
+        assert persisted.json().get("review")
 
     second_github = FakeGitHub()
     with TestClient(
