@@ -62,6 +62,8 @@ The environment variables in `.env.example` define the integration contract. Tok
 
 The webhook endpoint is `POST /webhooks/github`; configure GitHub to send `pull_request` events to it and set `GITHUB_WEBHOOK_SECRET` to the same secret. After reviewing the interrupt payload, a maintainer can approve or reject it through:
 
+Webhook requests are acknowledged before the LLM review runs in a background task. For multi-instance or high-volume production deployments, replace the in-process task runner with a durable queue such as Redis or a managed job service.
+
 ```bash
 curl -X POST http://localhost:8000/reviews/owner/project/42/approval \
   -H "Authorization: Bearer $APPROVAL_TOKEN" \
