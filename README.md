@@ -148,6 +148,8 @@ The approval endpoint requires `APPROVAL_TOKEN`. For production, a GitHub App is
 
 Requests are rate limited to 60 per source IP per minute by default; override the limit when constructing the app for tests or controlled deployments. Authenticated Prometheus-style counters are available at `/metrics` using `Authorization: Bearer $APPROVAL_TOKEN`.
 
+Use `/healthz` for a liveness probe and `/readyz` for a readiness probe. Readiness verifies both the SQLite connection and review queue worker.
+
 ## Container deployment
 
 ```bash
