@@ -3,7 +3,7 @@ name = "reviewforge"
 version = "0.1.0"
 description = "An open-source multi-agent GitHub pull request reviewer built with LangGraph."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.14"
 license = { text = "MIT" }
 authors = [{ name = "ReviewForge contributors" }]
 dependencies = [
