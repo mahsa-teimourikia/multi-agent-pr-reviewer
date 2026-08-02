@@ -7,7 +7,7 @@ requires-python = ">=3.11,<3.14"
 license = { text = "MIT" }
 authors = [{ name = "ReviewForge contributors" }]
 dependencies = [
-    "langgraph>=1.0.10,<2.0.0",
+    "langgraph>=1.2.10,<2.0.0",
     "langchain-openai>=1.1.14,<2.0.0",
     "pydantic-settings>=2.0.0,<3.0.0",
     "PyGithub>=2.0.0,<3.0.0",
